@@ -1,5 +1,5 @@
 #include "process.h"
-#include "schedule-main.c"
+#include "schedule-main.h"
 
 #include <stdlib.h>
 
