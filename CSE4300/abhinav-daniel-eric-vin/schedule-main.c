@@ -1,14 +1,7 @@
 #include "process.h"
 #include <stdio.h>
 
-enum QueueTypes {
-    ROUNDROBIN, //priority 1
-    STCF,       //priority 2
-    FIFO,       //priority 3
-    SJF         //priority 4
-}
-
-scheduleMain(struct process **procArray, int procArraySize, int maxTimesteps) {
+void scheduleMain(struct process **procArray, int procArraySize, int maxTimesteps) {
 
     //array to keep track of empty/non-empty queues
     int emptyQueues[] = {
@@ -22,15 +15,15 @@ scheduleMain(struct process **procArray, int procArraySize, int maxTimesteps) {
     int t = 0; //central time counter
     while (t < maxTimesteps) {
 
-        //simulate some queueing & scheduling
+        //simulate some queueing & scheduling VV
 
         //iterate through procArray to find newly arriving processes
 
-        //add new processes to appropriate queue
+        //add new processes to appropriate queue & update emptyQueues array
 
-        //
+        //execute processes based on the highest non-empty queue
 
-        t++; //increment time
+        t++; //increment time (based on type of algorithm)
 
     }
 
