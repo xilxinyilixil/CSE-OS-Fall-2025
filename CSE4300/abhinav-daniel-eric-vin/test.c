@@ -1,7 +1,4 @@
-struct process{
-    int remainingTime;
-    int arrival;
-}
+#include "process.h"
 
 void testA(){
     struct process processA;
