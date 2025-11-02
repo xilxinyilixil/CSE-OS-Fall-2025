@@ -6,7 +6,7 @@ struct process{
     int remainingTime;
     int arrival;
     int finishTime;
-    int priority;
+    int priority; //1 is highest priority
 };
 
 

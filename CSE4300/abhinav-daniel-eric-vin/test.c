@@ -15,9 +15,9 @@ void testA(){
 
     struct process processes[] = {processA, processB, processC};
     
-    fifo(processes,3);
-    sjf(processes,3);
-    srtcf(processes,3);
-    rr(processes,3,1);
+    fifo(processes,3); //Third
+    sjf(processes,3); ///Fourth
+    srtcf(processes,3); //Second highest priority queue
+    rr(processes,3,1); //First priority queue
 
 }
