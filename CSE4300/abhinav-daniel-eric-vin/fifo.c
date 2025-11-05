@@ -1,7 +1,7 @@
 #include "process.h"
 #include "fifo.h"
 
-void fifo(struct process **FIFOQueue, int queueSize, int globalTime){
+void fifo(struct process **FIFOQueue, int queueSize, int* queueptr, int globalTime){
 
     //rearrange for this algorithm
     
@@ -11,5 +11,6 @@ void fifo(struct process **FIFOQueue, int queueSize, int globalTime){
         //set finishtime
         //remove procArray[0] from queue
         //shift all other processes in the queue down so the next one is in procArray[0]
+        //update queueptr
 
 }
