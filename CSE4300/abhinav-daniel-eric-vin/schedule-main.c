@@ -25,12 +25,19 @@ void scheduleMain(struct process **procArray, int procArraySize, int maxTimestep
         1  //SJF
     };
 
-    int t = 0; //central time counter
+    int t = 0; //central time counter - represents ms
     while (t < maxTimesteps) {
 
         //simulate some queueing & scheduling VV
 
         //iterate through procArray to find newly arriving processes
+        for(int i=0; i<procArraySize; i++) {
+            if (procArray[i]->arrivalTime == t) {
+                if (procArray[i]->priority == 1) {
+                    //round robin
+                }
+            }
+        }
 
         //add new processes to appropriate queue & update emptyQueues array
 
