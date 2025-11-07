@@ -10,10 +10,10 @@ int scheduleMain(struct process **procArray, int procArraySize, int maxTimesteps
     struct process **FIFOQueue = malloc(procArraySize * sizeof(struct process*));
     struct process **SJFQueue = malloc(procArraySize * sizeof(struct process*));
 
-    int* RRQueueidx = 0;
-    int* STCFQueueidx = 0;
-    int* FIFOQueueidx = 0;
-    int* SJFQueueidx = 0;
+    int RRQueueidx = 0;
+    int STCFQueueidx = 0;
+    int FIFOQueueidx = 0;
+    int SJFQueueidx = 0;
 
     for(int i=0; i<procArraySize; i++) {
         RRQueue[i] = NULL;
@@ -55,27 +55,27 @@ int scheduleMain(struct process **procArray, int procArraySize, int maxTimesteps
             if (procArray[i]->arrivalTime == t) {
                 if (procArray[i]->priority == 1) {
                     //round robin
-                    RRQueue[*RRQueueidx] = procArray[i]; //add pointer to queue
-                    RRQueueidx++; //increment queue tracker
+                    RRQueue[RRQueueidx] = procArray[i]; //add pointer to queue
+                    (RRQueueidx)++; //increment queue tracker
                     emptyQueues[0] = 0; //not empty anymore
                 } else if (procArray[i]->priority == 2) {
                     //shortest time to completion first
-                    STCFQueue[*STCFQueueidx] = procArray[i];
-                    STCFQueueidx++;
+                    STCFQueue[STCFQueueidx] = procArray[i];
+                    (STCFQueueidx)++;
                     emptyQueues[1] = 0;
                 } else if (procArray[i]->priority == 3) {
                     //first in first out
-                    FIFOQueue[*FIFOQueueidx] = procArray[i];
-                    FIFOQueueidx++;
+                    FIFOQueue[FIFOQueueidx] = procArray[i];
+                    (FIFOQueueidx)++;
                     emptyQueues[2] = 0;
                 } else if (procArray[i]->priority == 4) {
                     //shortest job first
-                    SJFQueue[*SJFQueueidx] = procArray[i];
-                    SJFQueueidx++;
+                    SJFQueue[SJFQueueidx] = procArray[i];
+                    (SJFQueueidx)++;
                     emptyQueues[3] = 0;
                 } else {
                     printf("Invalid process priority level!\n");
-                    return 13;
+                    exit(13);
                 }
             }
         }
@@ -84,13 +84,13 @@ int scheduleMain(struct process **procArray, int procArraySize, int maxTimesteps
 
         //check to make sure parameters make sense for each function
         if(emptyQueues[0] == 0) { //if this queue is not empty..
-            rr(RRQueue, RRQueueidx, t);
+            rr(RRQueue, &RRQueueidx, t);
         } else if(emptyQueues[1] == 0) {
-            srtrf(STCFQueue, STCFQueueidx, t);
+            srtrf(STCFQueue, &STCFQueueidx, t);
         } else if(emptyQueues[2] == 0) {
-            fifo(FIFOQueue, FIFOQueueidx, t);
+            fifo(FIFOQueue, &FIFOQueueidx, t);
         } else if(emptyQueues[3] == 0) {
-            sjf(SJFQueue, SJFQueueidx, t);
+            sjf(SJFQueue, &SJFQueueidx, t);
         }
 
         t++; //increment time (based on type of algorithm)
