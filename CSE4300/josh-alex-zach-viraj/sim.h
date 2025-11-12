@@ -39,6 +39,8 @@ typedef struct Thread {
     int start_time;         // first time it ever ran; -1 until set
     int finish_time;        // completion time; -1 until set
     int wait_time;          // ticks spent in ready qeue
+    int quanta_rem;         // ticks remaining in this threads timeslice (for RR)
+    int priority;           // priority of thread
 } Thread;
 
 /* -------- Generic queue of Thread* (singly linked) -------- */
@@ -80,7 +82,7 @@ extern int SIM_TIME;
 /* Build an empty, sorted-by-arrival "arrivals" queue through finalize() */
 /* workload api you requested */
 void workload_init(Queue* workload);
-void workload_add(Queue* workload, int tid, int arrival, int burst);
+void workload_add(Queue* workload, int tid, int arrival, int burst, int priority);
 /* Move any threads whose arrival_time == now from workload -> ready */
 void workload_admit_tick(Queue* workload, Queue* ready, int now);
 

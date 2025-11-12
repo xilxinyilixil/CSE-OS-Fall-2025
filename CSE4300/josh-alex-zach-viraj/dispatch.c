@@ -1,19 +1,11 @@
 #include "dispatch.h"
 
-DispatchFn dispatch_get(DispatchAlgo algo) {
-    switch (algo) {
-        case DISP_FIFO:  return dispatch_fifo;
-        case DISP_SJF:   return dispatch_sjf;
-        case DISP_SRTCF: return dispatch_srtcf;   /* NEW */
-        default:         return dispatch_fifo;
-    }
-}
-
 const char* dispatch_name(DispatchAlgo algo) {
     switch (algo) {
         case DISP_FIFO:  return "FIFO";
         case DISP_SJF:   return "SJF (non-preemptive)";
         case DISP_SRTCF: return "SRTCF (preemptive SRTF)";
+        case DISP_RR:    return "RR (preemptive)";
         default:         return "unknown";
     }
 }
@@ -83,6 +75,72 @@ void dispatch_srtcf(CPU* cpu, Queue* ready) {
         }
 
         /* Nowhere to place 'best' (all running <= best). Put it back and stop. */
+        q_push(ready, best);
+        break;
+    }
+}
+
+/* ----------- RR ------------- */
+void dispatch_rr(CPU* cpu, Queue* ready, int quantum) {
+    if (quantum < 1) quantum = 1;
+
+    /* 1) Preempt expired-slice threads (they hit qrem==0 at end of last tick) */
+    for (int i = 0; i < cpu->ncores; ++i) {
+        Thread* t = cpu->core[i];
+        if (!t) continue;
+        if (t->quanta_rem == 0) {
+            preempt_to_ready(cpu, i, ready);  // unbind -> Ready tail; t->qrem unchanged (0)
+        }
+    }
+
+    /* 2) Fill idle cores from Ready; new bindings get a full slice */
+    for (int i = 0; i < cpu->ncores; ++i) {
+        if (cpu->core[i]) continue;
+        Thread* t = q_pop(ready);
+        if (!t) break;
+        t->quanta_rem = quantum;                 // give fresh quantum
+        cpu_bind_core(cpu, i, t);
+    }
+}
+
+/* ------------ PRIORITY ---------------*/
+/* find running core with the worst priority above threshold */
+static int core_with_worst_priority_above(const CPU* cpu, int threshold) {
+    int victim_core = -1;
+    int worst = -1;   /* track largest priority value greater than threshold */
+    for (int i = 0; i < cpu->ncores; ++i) {
+        Thread* r = cpu->core[i];
+        if (!r) continue;
+        if (r->priority > threshold && r->priority > worst) {
+            worst = r->priority;
+            victim_core = i;
+        }
+    }
+    return victim_core;
+}
+
+void dispatch_priority(CPU* cpu, Queue* ready) {
+    /* fill idle cores first */
+    while (cpu_any_idle(cpu)) {
+        Thread* t = q_pop_highest_priority(ready);  /* smallest priority value wins */
+        if (!t) break;
+        cpu_bind_first_idle(cpu, t);
+    }
+
+    /* preempt if a ready thread beats some running thread */
+    for (;;) {
+        Thread* best = q_pop_highest_priority(ready);
+        if (!best) break;
+
+        // preempt if the current theres a higher priority thread
+        int victim = core_with_worst_priority_above(cpu, best->priority);
+        if (victim >= 0) {
+            preempt_to_ready(cpu, victim, ready);
+            cpu_bind_core(cpu, victim, best);
+            continue;
+        }
+
+        /* no preemption: put it back and stop */
         q_push(ready, best);
         break;
     }

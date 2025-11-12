@@ -5,7 +5,7 @@
 #define MAX_TICKS 50000
 
 /* make a new thread object */
-static Thread* make_thread(int tid, int arrival, int burst) {
+static Thread* make_thread(int tid, int arrival, int burst, int priority) {
     Thread* t = (Thread*)calloc(1, sizeof(Thread));
     t->tid = tid;
     t->arrival_time = arrival;
@@ -17,6 +17,8 @@ static Thread* make_thread(int tid, int arrival, int burst) {
     t->start_time  = -1;
     t->finish_time = -1;
     t->wait_time   = 0;
+    t->quanta_rem = 0;
+    t->priority = priority;
     return t;
 }
 
@@ -25,8 +27,8 @@ void workload_init(Queue* workload) {
     q_init(workload);
 }
 
-void workload_add(Queue* workload, int tid, int arrival, int burst) {
-    Thread* t = make_thread(tid, arrival, burst);
+void workload_add(Queue* workload, int tid, int arrival, int burst, int priority) {
+    Thread* t = make_thread(tid, arrival, burst, priority);
     /* do not reorder here, user adds in any order */
     q_push(workload, t);
 }
@@ -77,10 +79,9 @@ static int all_done(const Queue* ready, const Queue* waiting, const CPU* cpu) {
     return 1;
 }
 
-/* -------- RANDOM INTERRUPT Implementation ----------------*/
+// random IO interrupts
 static int rnd(int a, int b) { return a + rand() % (b - a + 1); }
 
-// random IO interrupts
 static void random_interrupts(const InterruptConfig* cfg, CPU* cpu, Queue* waiting, Log* log)  {
     if (!cfg || !cfg->enable_random) return;
 
@@ -131,17 +132,17 @@ int workload_prompt(Queue* workload, FILE* in, FILE* out) {
     if (n < 1) return -1;
 
     for (int i = 1; i <= n; ++i) {
-        int arrival, burst;
-        if (out) fprintf(out, "Thread %d - enter arrival and burst (e.g. 0 5): ", i);
+        int arrival, burst, priority;
+        if (out) fprintf(out, "Thread %d - enter arrival and burst (e.g. 0 5 0): ", i);
         for (;;) {
-            int rc = fscanf(in, "%d %d", &arrival, &burst);
-            if (rc == 2 && arrival >= 0 && burst > 0) break;
-            if (out) fprintf(out, "Invalid. Arrival must be >= 0 and burst > 0. Try again: ");
+            int rc = fscanf(in, "%d %d %d", &arrival, &burst, &priority);
+            if (rc == 3 && arrival >= 0 && burst > 0) break;
+            if (out) fprintf(out, "Invalid. Format: <arrival>=>=0 <burst>>0 <priority=int>. Try again: ");
             int ch;
             while ((ch = fgetc(in)) != '\n' && ch != EOF) { /* discard */ }
             if (feof(in)) return -1;
         }
-        workload_add(workload, /*tid*/ i, arrival, burst);
+        workload_add(workload, /*tid*/ i, arrival, burst, priority);
     }
 
     if (out) fprintf(out, "Loaded %d threads.\n\n", n);
@@ -149,7 +150,16 @@ int workload_prompt(Queue* workload, FILE* in, FILE* out) {
 }
 
 int main(void) {
-    /* build workload directly with the queue api */
+    /* --------- INIT LOGGING ----------- */
+    /* open log */
+    Log log;
+    if (log_open(&log, "sim_log.txt") != 0) {
+        fprintf(stderr, "cannot open sim_log.txt\n");
+        return 1;
+    }
+    log_set_multiline(&log, 1);  // turn on the indented block style
+
+    /* --------- INIT WORKLOAD ---------- */
     Queue workload;
     workload_init(&workload);
 
@@ -158,38 +168,95 @@ int main(void) {
     q_init(&ready);
     q_init(&waiting);
     q_init(&finished);
-    int ncores = 1;  // initial number of cores
 
-    /* --- choose workload source --- */
+    /* ------------------- USER INPUT FOR SCHEDULER -------------------*/
+    printf("\nSelect scheduler:\n");
+    printf("  1) FIFO\n");
+    printf("  2) SJF\n");
+    printf("  3) SRTCF\n");
+    printf("  4) Round Robin\n");
+    printf("  5) Priority\n");
+    int choice = 1;
+    for (;;) {
+        choice = prompt_int(stdin, stdout, "Enter choice [1-5]: ", 1);
+        if (choice >= 1 && choice <= 5) break;
+        fprintf(stdout, "Please enter a number between 1 and 5.\n");
+    }
+    
+    DispatchAlgo algo = DISP_FIFO;  // default to fifo
+    switch (choice) {
+        case 2:  algo = DISP_SJF;    break;
+        case 3:  algo = DISP_SRTCF;  break;
+        case 4:  algo = DISP_RR;     break;
+        case 5:  algo = DISP_PR;     break;
+        case 1: break;
+        default: algo = DISP_FIFO;   break;
+    }
+
+    // case for RR chosen (need quantum)
+    int rr_quantum = 0;  // init to 0
+    if (algo == DISP_RR) {
+        printf("\nEnter RR quantum in ticks (>=1): ");
+        int choice = 1;
+        if (scanf("%d", &choice) != 1) choice = 1;
+        rr_quantum = choice;
+    }
+        
+    /* ------------------- USER INPUT FOR CORES -------------------*/
+    int ncores = 1;  // init to 1
+    choice = 1;
+    for (;;) {
+        choice = prompt_int(stdin, stdout, "Enter number of CPU cores (>=1): ", 1);
+        if (choice >= 1) break;
+        fprintf(stdout, "Please enter an integer >=1:\n");
+    }
+    ncores = choice;
+
+
+    /*-------  USER INPUT FOR INTERRUPT CONFIGURATION ----------------*/
+    choice = 0;
+    for (;;) {
+        choice = prompt_int(stdin, stdout, "Simulate with random interrupts? (0/1): ", 0);
+        if (choice >= 0) break;
+        fprintf(stdout, "Please enter 0 or 1:\n");
+    }
+    int interrupt_enable = choice;
+    InterruptConfig intr = {.enable_random = interrupt_enable, .pct_io = 10, .io_min = 2, .io_max = 6};
+    srand(42);
+    log_interrupts_config(&log, intr.enable_random, intr.pct_io, intr.io_min, intr.io_max);
+
+
+    /* ------------- USER INPUT FOR WORKLOAD CHOICE -------------- */
     printf("\nSelect workload mode:\n");
     printf("  1) Preset small example\n");
     printf("  2) Preset large randomized\n");
     printf("  3) Manual entry\n");
-    printf("Enter choice [1 3]: ");
-
-    int choice = 0;
-    if (scanf("%d", &choice) != 1) choice = 1;
+    choice = 0;
+    for (;;) {
+        choice = prompt_int(stdin, stdout, "Enter choice [1 3]: ", 1);
+        if (choice >= 1 && choice <= 3) break;
+        fprintf(stdout, "Please enter an integer 1 through 3:\n");
+    }
     /* clear trailing line */
     int ch; while ((ch = fgetc(stdin)) != '\n' && ch != EOF) {}
 
     switch (choice) {
         case 1: {
             /* small preset */
-            workload_add(&workload, 1, 0, 5);
-            workload_add(&workload, 2, 0, 3);
-            workload_add(&workload, 3, 2, 6);
-            workload_add(&workload, 4, 4, 4);
+            workload_add(&workload, 1, 0, 5, 10);
+            workload_add(&workload, 2, 0, 3, 7);
+            workload_add(&workload, 3, 2, 6, 5);
+            workload_add(&workload, 4, 4, 4, 4);
             printf("Loaded preset small workload\n\n");
             break;
         }
         case 2: {
-            ncores = 6;
             /* large randomized preset */
-            int N = 2000;
+            int N = 1000;
             /* simple local rnd helper if you do not already have one */
             srand(42);
             for (int i = 1; i <= N; ++i) {
-                workload_add(&workload, i, rnd(0, 300), rnd(1, 30));
+                workload_add(&workload, i, rnd(0, 300), rnd(1, 30), rnd(1, 10));
             }
             printf("Loaded preset large randomized workload with %d threads\n\n", N);
             break;
@@ -201,19 +268,11 @@ int main(void) {
                 fprintf(stderr, "Failed to read workload\n");
                 return 1;
             }
-            /* optional: prompt for core count */
-            ncores = 2;  /* default */
-            printf("Enter number of CPU cores (>=1): ");
-            if (scanf("%d", &ncores) != 1 || ncores < 1) {
-                fprintf(stderr, "Invalid cores, using %d.\n", ncores = 2);
-                // flush line if needed
-                int ch; while ((ch = fgetc(stdin)) != '\n' && ch != EOF) {}
-            }
             break;
         }
     }
 
-    // init cpu
+    /* ------------ INIT CPU AND CPU TRACE MEMBERS ------------ */
     CPU cpu; cpu_init(&cpu, ncores);
 
     /* run_trace[c][t] = tid at tick t for core c, or -1 if idle */
@@ -228,15 +287,7 @@ int main(void) {
     cpu.run_trace = run_trace;
     cpu.trace_len = MAX_TICKS;
 
-    /* open log */
-    Log log;
-    if (log_open(&log, "sim_log.txt") != 0) {
-        fprintf(stderr, "cannot open sim_log.txt\n");
-        return 1;
-    }
-    log_set_multiline(&log, 1);  // turn on the indented block style
-
-    /* start at time zero */
+    /* TICK AT ZERO*/
     SIM_TIME = 0;
 
     /* show what will be simulated */
@@ -245,25 +296,22 @@ int main(void) {
     // Admit arrivals for tick 0 from workload -> ready
     workload_admit_tick(&workload, &ready, SIM_TIME);
 
-    // SETUP SCHEDULER
-    DispatchAlgo algo = DISP_SRTCF;
-    DispatchFn schedule = dispatch_get(algo);
-
-    /* INTERRUPT CONFIGURATION*/
-    InterruptConfig intr = {.enable_random = 0, .pct_io = 10, .io_min = 2, .io_max = 6};
-    srand(42);
-    log_interrupts_config(&log, intr.enable_random, intr.pct_io, intr.io_min, intr.io_max);
-
     // MAIN SIMULATION LOOP
     for (;;) {
         // add processes that arrive at current tick to ready qeue
         workload_admit_tick(&workload, &ready, SIM_TIME);
-        waiting_io_resolve(&waiting, &ready, SIM_TIME);     // I/O completions
+        waiting_resolve(&waiting, &ready, SIM_TIME);     // move threads from waiting queue to ready queue if block_time has been met
 
         random_interrupts(&intr, &cpu, &waiting, &log);  // simulate random IO interrupts
     
-        /* choose who runs this tick */
-        schedule(&cpu, &ready);
+        // Schedule with selected policy
+        switch (algo) {
+            case DISP_FIFO:  dispatch_fifo(&cpu, &ready); break;
+            case DISP_SJF:   dispatch_sjf(&cpu, &ready);  break;
+            case DISP_SRTCF: dispatch_srtcf(&cpu, &ready); break;
+            case DISP_RR: dispatch_rr(&cpu, &ready, rr_quantum); break;
+            case DISP_PR: dispatch_priority(&cpu, &ready); break;
+        }
 
         // everyone still queued this tick accrues 1 unit of waiting
         bump_queue_wait(&ready);
@@ -273,6 +321,9 @@ int main(void) {
 
         /* run one tick on all cores */
         cpu_step(&cpu);
+
+        /* decay priority (only effective in priority policy)*/
+        decay_priority(&waiting, &ready);
 
         /* move completed to finished */
         collect_completions(&cpu, &finished);

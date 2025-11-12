@@ -10,15 +10,20 @@ void q_push(Queue* q, Thread* t);
 Thread* q_pop(Queue* q);
 /* Add 1 tick of waiting to every thread in q (use for Ready; optionally Waiting) */
 void bump_queue_wait(Queue* q);
-// pop the thread with minimum time remaining
+
+// Queue operations specific to shceduling policies
 Thread* q_pop_min_remaining(Queue* q);
 Thread* q_pop_min_burst(Queue* q);
+Thread* q_pop_highest_priority(Queue* q);  // smaller priority value wins
 
 /* (Optional) clear queue nodes (does NOT free Thread objects themselves) */
 void q_clear_shallow(Queue* q);
 
 /* Move any WAITING threads whose unblocked_at <= now back to Ready. */
-void waiting_io_resolve(Queue* waiting, Queue* ready, int now);
+void waiting_resolve(Queue* waiting, Queue* ready, int now);
+
+// Priority Decay for Priority Queue system
+void decay_priority(Queue* waiting, Queue* ready);
 
 /* ---------- Logging ---------- */
 typedef struct {

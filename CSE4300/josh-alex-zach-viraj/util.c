@@ -1,4 +1,5 @@
 #include "util.h"
+#define INT_MAX 2147483647
 
 /* ---------------- Queue ---------------- */
 
@@ -50,7 +51,7 @@ static Thread* q_remove_after(Queue* q, Thread* prev) {
 Thread* q_pop_min_burst(Queue* q) {
     if (!q || q->size == 0) return NULL;
     Thread* best_prev = NULL;
-    int best = 2147483647;
+    int best = INT_MAX;
     Thread* prev = NULL;
     for (Thread* cur = q->front; cur; prev = cur, cur = cur->next) {
         if (cur->burst_time < best) {
@@ -64,11 +65,28 @@ Thread* q_pop_min_burst(Queue* q) {
 Thread* q_pop_min_remaining(Queue* q) {
     if (!q || q->size == 0) return NULL;
     Thread* best_prev = NULL;
-    int best = 2147483647;
+    int best = INT_MAX;
     Thread* prev = NULL;
     for (Thread* cur = q->front; cur; prev = cur, cur = cur->next) {
         if (cur->remaining < best) {
             best = cur->remaining;
+            best_prev = prev;
+        }
+    }
+    return q_remove_after(q, best_prev);
+}
+
+Thread* q_pop_highest_priority(Queue* q) {
+    if (!q || q->size == 0) return NULL;
+
+    Thread* best_prev = NULL;
+    int best_val = INT_MAX;
+    Thread* prev = NULL;
+
+    // find thread with lowest priority
+    for (Thread* cur = q->front; cur; prev = cur, cur = cur->next) {
+        if (cur->priority < best_val) {
+            best_val  = cur->priority;
             best_prev = prev;
         }
     }
@@ -87,7 +105,7 @@ void q_clear_shallow(Queue* q) {
     }
 }
 
-void waiting_io_resolve(Queue* waiting, Queue* ready, int now) {
+void waiting_resolve(Queue* waiting, Queue* ready, int now) {
     if (q_empty(waiting)) return;
     Queue keep; q_init(&keep);
     while (!q_empty(waiting)) {
@@ -101,6 +119,23 @@ void waiting_io_resolve(Queue* waiting, Queue* ready, int now) {
     }
     // keep original order of waiting threads
     while (!q_empty(&keep)) q_push(waiting, q_pop(&keep));
+}
+
+void decay_priority(Queue* waiting, Queue* ready) {
+    // decay ready threads
+    for (Thread* p = ready ? ready->front : NULL; p; p = p->next) {
+        if (p->priority > 0) {
+            p->priority--;
+            if (p->priority < 0) p->priority = 0;
+        }
+    }
+    // decay waiting threads
+    for (Thread* p = waiting ? waiting->front : NULL; p; p = p->next) {
+        if (p->priority > 0) {
+            p->priority--;
+            if (p->priority < 0) p->priority = 0;
+        }
+    }
 }
 
 /* ---------- Logging ---------- */
@@ -203,13 +238,16 @@ static const char* state_str(ThreadState s) {
 /* internal: print a header line for tables */
 static void fprint_table_header(FILE* fp, const char* title) {
     if (title && *title) fprintf(fp, "%s\n", title);
-    fprintf(fp, "%-6s %-8s %-8s %-8s\n", "TID", "ARR", "BURST", "STATE");
+    /* add PRIO column */
+    fprintf(fp, "%-6s %-8s %-8s %-8s %-6s\n", "TID", "ARR", "BURST", "STATE", "PRIO");
 }
+
 
 /* internal: print one thread row */
 static void fprint_thread_row(FILE* fp, const Thread* t) {
-    fprintf(fp, "%-6d %-8d %-8d %-8s\n",
-            t->tid, t->arrival_time, t->burst_time, state_str(t->state));
+    /* print t->priority at the end */
+    fprintf(fp, "%-6d %-8d %-8d %-8s %-6d\n",
+            t->tid, t->arrival_time, t->burst_time, state_str(t->state), t->priority);
 }
 
 /* public: print the workload queue as a table */

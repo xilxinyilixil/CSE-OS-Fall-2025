@@ -43,6 +43,7 @@ void block_to_waiting(CPU* cpu, int core_idx, Queue* waiting, int unblock_at) {
     if (!t) return;
     t->state = ST_WAITING;
     t->unblocked_at = unblock_at;
+    t->quanta_rem = 0;  // blocking reset's threads slice for RR
     q_push(waiting, t);
 }
 
@@ -72,13 +73,20 @@ void cpu_step(CPU* cpu) {
         if (t->remaining > 0) {
             t->remaining -= 1;  // consume one tick
         }
+        // update threads quanta (only applicable to RR)
+        if (t->quanta_rem > 0) {
+            t->quanta_rem -= 1;
+            if (t->quanta_rem < 0) t->quanta_rem = 0;
+        }
     }
+
     // record who runs during [SIM_TIME, SIM_TIME+1)
     if (SIM_TIME < cpu->trace_len) {
         for (int c = 0; c < cpu->ncores; ++c) {
             cpu->run_trace[c][SIM_TIME] = cpu->core[c] ? cpu->core[c]->tid : -1;
         }
     }
+
     /* advance time */
     SIM_TIME += 1;
 }
