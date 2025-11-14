@@ -25,18 +25,18 @@ int main() {
         jobs1_sjf[i] = jobs1[i];
     }
 
-    printf("SJF Scheduler:\n");
+    printf("    SJF Scheduler:\n");
     sjf_scheduler(jobs1_sjf, num_jobs1);
     for (int i = 0; i < num_jobs1; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs1_sjf[i].thread_ID, jobs1_sjf[i].arrival, jobs1_sjf[i].burst, 
             jobs1_sjf[i].turnaround, jobs1_sjf[i].response, jobs1_sjf[i].wait);
     }
 
-    printf("\nFIFO Scheduler:\n");
+    printf("\n    FIFO Scheduler:\n");
     fifo(jobs1_fifo, num_jobs1);
     for (int i = 0; i < num_jobs1; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs1_fifo[i].thread_ID, jobs1_fifo[i].arrival, jobs1_fifo[i].burst,
             jobs1_fifo[i].turnaround, jobs1_fifo[i].response, jobs1_fifo[i].wait);
     }
@@ -59,18 +59,18 @@ int main() {
         jobs2_sjf[i] = jobs2[i];
     }
 
-    printf("SJF Scheduler:\n");
+    printf("    SJF Scheduler:\n");
     sjf_scheduler(jobs2_sjf, num_jobs2);
     for (int i = 0; i < num_jobs2; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs2_sjf[i].thread_ID, jobs2_sjf[i].arrival, jobs2_sjf[i].burst, 
             jobs2_sjf[i].turnaround, jobs2_sjf[i].response, jobs2_sjf[i].wait);
     }
 
-    printf("\nFIFO Scheduler:\n");
+    printf("\n    FIFO Scheduler:\n");
     fifo(jobs2_fifo, num_jobs2);
     for (int i = 0; i < num_jobs2; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs2_fifo[i].thread_ID, jobs2_fifo[i].arrival, jobs2_fifo[i].burst,
             jobs2_fifo[i].turnaround, jobs2_fifo[i].response, jobs2_fifo[i].wait);
     }
@@ -92,18 +92,18 @@ int main() {
         jobs3_sjf[i] = jobs3[i];
     }
 
-    printf("SJF Scheduler:\n");
+    printf("    SJF Scheduler:\n");
     sjf_scheduler(jobs3_sjf, num_jobs3);
     for (int i = 0; i < num_jobs3; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs3_sjf[i].thread_ID, jobs3_sjf[i].arrival, jobs3_sjf[i].burst, 
             jobs3_sjf[i].turnaround, jobs3_sjf[i].response, jobs3_sjf[i].wait);
     }
 
-    printf("\nFIFO Scheduler:\n");
+    printf("\n    FIFO Scheduler:\n");
     fifo(jobs3_fifo, num_jobs3);
     for (int i = 0; i < num_jobs3; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs3_fifo[i].thread_ID, jobs3_fifo[i].arrival, jobs3_fifo[i].burst,
             jobs3_fifo[i].turnaround, jobs3_fifo[i].response, jobs3_fifo[i].wait);
     }
@@ -123,21 +123,40 @@ int main() {
         jobs4_sjf[i] = jobs4[i];
     }
 
-    printf("SJF Scheduler:\n");
+    printf("    SJF Scheduler:\n");
     sjf_scheduler(jobs4_sjf, num_jobs4);
     for (int i = 0; i < num_jobs4; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs4_sjf[i].thread_ID, jobs4_sjf[i].arrival, jobs4_sjf[i].burst, 
             jobs4_sjf[i].turnaround, jobs4_sjf[i].response, jobs4_sjf[i].wait);
     }
 
-    printf("\nFIFO Scheduler:\n");
+    printf("\n    FIFO Scheduler:\n");
     fifo(jobs4_fifo, num_jobs4);
     for (int i = 0; i < num_jobs4; i++) {
-        printf("Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
             jobs4_fifo[i].thread_ID, jobs4_fifo[i].arrival, jobs4_fifo[i].burst,
             jobs4_fifo[i].turnaround, jobs4_fifo[i].response, jobs4_fifo[i].wait);
     }
 
+    // Test Case 5: Quantum Implementation
+    printf("\nTEST CASE 5: Quantum Implementation\n");
+    struct thread jobs5[] = {
+        { .thread_ID = 1, .arrival = 0, .burst = 8 },
+        { .thread_ID = 2, .arrival = 1, .burst = 6 },
+        { .thread_ID = 3, .arrival = 2, .burst = 4 }
+    };
+    int num_jobs5 = sizeof(jobs5) / sizeof(jobs5[0]);
+    struct thread jobs5_hybrid[3];
+    for (int i = 0; i < num_jobs5; i++){
+        jobs5_hybrid[i] = jobs5[i];        
+    } 
+    printf("    Hybrid Scheduler [FIFO to SJF]:\n");
+    fifo(jobs5_hybrid, num_jobs5);
+    for (int i = 0; i < num_jobs5; i++){
+        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
+            jobs5_hybrid[i].thread_ID, jobs5_hybrid[i].arrival, jobs5_hybrid[i].burst,
+            jobs5_hybrid[i].turnaround, jobs5_hybrid[i].response, jobs5_hybrid[i].wait);
+    } 
     return 0;
 }
