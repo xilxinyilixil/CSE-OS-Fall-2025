@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "thread.h"
 
-//compile with gcc -o test test.c FIFO.c SJF.c
+//compile with gcc -o test test.c FIFO.c SJF.c quantum.c
 
 //functions
 void fifo(struct thread* jobs, int numjobs);
