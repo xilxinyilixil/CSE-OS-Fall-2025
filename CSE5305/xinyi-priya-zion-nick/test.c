@@ -6,6 +6,8 @@
 //functions
 void fifo(struct thread* jobs, int numjobs);
 void sjf_scheduler(struct thread* jobs, int num_jobs);
+void hybrid_quantum(struct thread *jobs, int numjobs, int quantum);
+
 
 int main() {
     // Test Case 1: Basic
@@ -41,6 +43,8 @@ int main() {
             jobs1_fifo[i].turnaround, jobs1_fifo[i].response, jobs1_fifo[i].wait);
     }
 
+
+
     // Test Case 2: Same arrival time
     printf("\nTEST CASE 2: Same Arrival Time\n");
     struct thread jobs2[] = {
@@ -75,6 +79,8 @@ int main() {
             jobs2_fifo[i].turnaround, jobs2_fifo[i].response, jobs2_fifo[i].wait);
     }
 
+
+
     // Test Case 3: Short job arrives later
     printf("\nTEST CASE 3: Short Job Arrives Later\n");
     struct thread jobs3[] = {
@@ -108,6 +114,8 @@ int main() {
             jobs3_fifo[i].turnaround, jobs3_fifo[i].response, jobs3_fifo[i].wait);
     }
 
+
+
     // Test Case 4: Single job
     printf("\nTEST CASE 4: Single Job\n");
     struct thread jobs4[] = {
@@ -117,7 +125,6 @@ int main() {
     int num_jobs4 = sizeof(jobs4) / sizeof(jobs4[0]);
     struct thread jobs4_fifo[1];
     struct thread jobs4_sjf[1];
-    
     for (int i = 0; i < num_jobs4; i++) {
         jobs4_fifo[i] = jobs4[i];
         jobs4_sjf[i] = jobs4[i];
@@ -139,24 +146,34 @@ int main() {
             jobs4_fifo[i].turnaround, jobs4_fifo[i].response, jobs4_fifo[i].wait);
     }
 
+
+
     // Test Case 5: Quantum Implementation
     printf("\nTEST CASE 5: Quantum Implementation\n");
     struct thread jobs5[] = {
-        { .thread_ID = 1, .arrival = 0, .burst = 8 },
-        { .thread_ID = 2, .arrival = 1, .burst = 6 },
-        { .thread_ID = 3, .arrival = 2, .burst = 4 }
+        { .thread_ID = 1, .arrival = 0, .burst = 8, .turnaround = 0, .response = 0, .wait = 0, .completion_time = 0, .first_run = -1 },
+        { .thread_ID = 2, .arrival = 1, .burst = 6, .turnaround = 0, .response = 0, .wait = 0, .completion_time = 0, .first_run = -1 },
+        { .thread_ID = 3, .arrival = 2, .burst = 4, .turnaround = 0, .response = 0, .wait = 0, .completion_time = 0, .first_run = -1 }
     };
     int num_jobs5 = sizeof(jobs5) / sizeof(jobs5[0]);
     struct thread jobs5_hybrid[3];
-    for (int i = 0; i < num_jobs5; i++){
-        jobs5_hybrid[i] = jobs5[i];        
-    } 
-    printf("    Hybrid Scheduler [FIFO to SJF]:\n");
-    fifo(jobs5_hybrid, num_jobs5);
-    for (int i = 0; i < num_jobs5; i++){
-        printf("    Job ID %d: arrival=%d, burst=%d, turnaround=%d, response=%d, wait=%d\n",
-            jobs5_hybrid[i].thread_ID, jobs5_hybrid[i].arrival, jobs5_hybrid[i].burst,
-            jobs5_hybrid[i].turnaround, jobs5_hybrid[i].response, jobs5_hybrid[i].wait);
-    } 
+
+    for (int i = 0; i < num_jobs5; i++) {
+        jobs5_hybrid[i] = jobs5[i];
+    }
+    int QUANTUM = 10;  // You can change this anytime
+    printf("    Hybrid Scheduler [FIFO → SJF at quantum=%d]:\n", QUANTUM);
+    hybrid_quantum(jobs5_hybrid, num_jobs5, QUANTUM);
+    for (int i = 0; i < num_jobs5; i++) {
+        printf("    Job ID %d: arrival=%d, burst=%d, completion=%d, turnaround=%d, response=%d, wait=%d\n",
+            jobs5_hybrid[i].thread_ID,
+            jobs5_hybrid[i].arrival,
+            jobs5_hybrid[i].burst,
+            jobs5_hybrid[i].completion_time,
+            jobs5_hybrid[i].turnaround,
+            jobs5_hybrid[i].response,
+            jobs5_hybrid[i].wait
+        );
+    }
     return 0;
 }
